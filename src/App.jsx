@@ -7,7 +7,7 @@ const animations = {
   walk: base + "walk.json",
   dance: base + "dance.json",
   jump: base + "jump.json",
-  run: base + = "run1.json"
+  run: base + "run1.json"
 };
 
 function App() {
