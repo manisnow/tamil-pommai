@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import lottie from "lottie-web";
 
+const base = "/tamil-pommai/";
 const animations = {
-  sit: "/sit.json",
-  walk: "/walk.json",
-  dance: "/dance.json",
-  jump: "/jump.json",
+  sit: base + "sit.json",
+  walk: base + "walk.json",
+  dance: base + "dance.json",
+  jump: base + "jump.json",
+  run: base + = "run1.json"
 };
 
 function App() {
@@ -24,23 +26,28 @@ function App() {
     return () => anim.destroy();
   }, [current]);
 
-  const startListening = () => {
-    const recognition = new (window.SpeechRecognition ||
-      window.webkitSpeechRecognition)();
-    recognition.lang = "ta-IN";
-    recognition.start();
+ const startListening = () => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    setMessage("உங்கள் உலாவியில் (browser) குரல் அடையாளம் (speech recognition) ஆதரவு இல்லை.");
+    return;
+  }
+  const recognition = new SpeechRecognition();
+  recognition.lang = "ta-IN";
+  recognition.start();
 
-    recognition.onresult = (event) => {
-      const text = event.results[0][0].transcript.trim();
-      setMessage(`நீங்கள் சொன்னது: ${text}`);
+  recognition.onresult = (event) => {
+    const text = event.results[0][0].transcript.trim();
+    setMessage(`நீங்கள் சொன்னது: ${text}`);
 
-      if (text.includes("உக்காரு")) setCurrent("sit");
-      else if (text.includes("நட")) setCurrent("walk");
-      else if (text.includes("ஆடு")) setCurrent("dance");
-      else if (text.includes("குதி")) setCurrent("jump");
-      else setMessage(`அறிய முடியவில்லை: ${text}`);
-    };
+    if (text.includes("உக்காரு")) setCurrent("sit");
+    else if (text.includes("நட")) setCurrent("walk");
+    else if (text.includes("ஆடு")) setCurrent("dance");
+    else if (text.includes("குதி")) setCurrent("jump");
+     else if (text.includes("ஓடு")) setCurrent("run");
+    else setMessage(`அறிய முடியவில்லை: ${text}`);
   };
+};
 
   return (
     <div
