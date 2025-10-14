@@ -1,8 +1,33 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vite.dev/config/
 export default defineConfig({
-  base: '/tamil-pommai/', // <-- Add this line
-  plugins: [react()],
-});
+  base: '/tamil-pommai/',
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'தமிழ் பொம்மை விளையாட்டு',
+        short_name: 'Pommai',
+        start_url: '/tamil-pommai/',
+        display: 'standalone',
+        background_color: '#ffffff',
+        theme_color: '#ffcc00',
+        icons: [
+          {
+            src: 'icon-192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'icon-512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      }
+    })
+  ]
+})
