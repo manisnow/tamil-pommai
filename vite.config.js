@@ -10,6 +10,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifest: {
         name: 'தமிழ் பொம்மை விளையாட்டு',
+        id: '/tamil-pommai/',
         short_name: 'Pommai',
         description: 'குரல் கட்டளைகளுடன் குழந்தைகள் விளையாடும் தமிழ் பொம்மை செயலி. (A Tamil voice-activated animation app for kids!)',
         start_url: '/tamil-pommai/',
