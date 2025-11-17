@@ -36,33 +36,70 @@ function App() {
     return () => anim.destroy();
   }, [current]);
 
- const startListening = () => {
+ const startListening = async () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    setMessage("உங்கள் உலாவியில் (browser) குரல் அடையாளம் (speech recognition) ஆதரவு இல்லை.");
+    setMessage("உங்கள் உலாவியில் குரல் அடையாளம் (speech recognition) ஆதரவு இல்லை.");
     return;
   }
-  const recognition = new SpeechRecognition();
-  recognition.lang = "ta-IN";
-  recognition.start();
 
-  recognition.onresult = (event) => {
-    const text = event.results[0][0].transcript.trim();
-    setMessage(`நீங்கள் சொன்னது: ${text}`);
+  // Request microphone permission first - some mobile browsers require getUserMedia to prompt permission.
+  try {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+  } catch (err) {
+    console.error('Microphone permission denied or error:', err);
+    setMessage("மைக்ரோபோன் அனுமதி வழங்கப்படவில்லை. செயலியை பயன்படுத்த மைக்ரோபோன் அனுமதி தேவை.");
+    return;
+  }
 
-     // Flatten all triggers with their keys, sort by trigger length descending
-    const allTriggers = commandMap
-      .flatMap(cmd => cmd.triggers.map(trigger => ({ key: cmd.key, trigger })))
-      .sort((a, b) => b.trigger.length - a.trigger.length);
+  try {
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ta-IN";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
 
-    // Find the first matching trigger
-    const found = allTriggers.find(item => text.includes(item.trigger));
+    recognition.onstart = () => {
+      setMessage("கேட்கப்படுகிறது... பேசவும்.");
+      console.log('Speech recognition started');
+    };
+
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript.trim();
+      console.log('speech result:', text);
+      setMessage(`நீங்கள் சொன்னது: ${text}`);
+
+      const allTriggers = commandMap
+        .flatMap(cmd => cmd.triggers.map(trigger => ({ key: cmd.key, trigger })))
+        .sort((a, b) => b.trigger.length - a.trigger.length);
+
+      const found = allTriggers.find(item => text.includes(item.trigger));
       if (found) {
         setCurrent(found.key);
       } else {
         setMessage(`அறிய முடியவில்லை: ${text}`);
       }
-  };
+    };
+
+    recognition.onerror = (e) => {
+      console.error('recognition error', e);
+      setMessage("குரல் அடையாளத்தில் பிழை: " + (e.error || 'unknown'));
+    };
+
+    recognition.onend = () => {
+      console.log('recognition ended');
+      // Optionally restart automatically for continuous listening:
+      // recognition.start();
+      // Or update UI to allow user to start again
+    };
+
+    recognition.start();
+  } catch (e) {
+    console.error('Speech recognition init failed', e);
+    setMessage("குரல் அடையாளத்தை துவங்க முடியவில்லை.");
+  }
 };
 
 
