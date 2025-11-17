@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import lottie from "lottie-web";
+import AudioTest from './components/AudioTest';
 
 const base = "/tamil-pommai/";
 const animations = {
@@ -23,10 +24,6 @@ function App() {
   const container = useRef(null);
   const [message, setMessage] = useState("பேசுங்கள்… (Speak a command)");
   const [current, setCurrent] = useState("sit");
-
-
-
-
 
   useEffect(() => {
     const anim = lottie.loadAnimation({
@@ -138,6 +135,7 @@ function App() {
         🎤 பேச தொடங்குங்கள்
       </button>
       <p style={{ marginTop: "20px", fontSize: "18px" }}>{message}</p>
+      <AudioTest />
     </div>
   );
 }
