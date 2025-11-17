@@ -11,7 +11,6 @@ const animations = {
   run: base + "run1.json"
 };
 
-// Map animation keys to only Tamil trigger words
 const commandMap = [
   { key: "sit", triggers: ["உக்காரு", "உட்காரு"] },
   { key: "walk", triggers: ["நட"] },
@@ -22,11 +21,9 @@ const commandMap = [
 
 function App() {
   const container = useRef(null);
-  const recognitionRef = useRef(null); // <-- added
+  const recognitionRef = useRef(null);
   const [message, setMessage] = useState("பேசுங்கள்… (Speak a command)");
   const [current, setCurrent] = useState("sit");
-
-  // NEW state: track whether we are actively listening (for toggle/stop)
   const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
@@ -43,9 +40,8 @@ function App() {
   const stopListening = () => {
     const recognition = recognitionRef.current;
     if (recognition) {
-      // prevent auto-restart and stop current recognition
       recognition._keepListening = false;
-      try { recognition.stop(); } catch(e) { /* ignore */ }
+      try { recognition.stop(); } catch (e) { /* ignore */ }
     }
     setIsListening(false);
     setMessage("நிறுத்தப்பட்டது");
@@ -58,7 +54,6 @@ function App() {
       return;
     }
 
-    // prompt mic permission
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -70,25 +65,22 @@ function App() {
     }
 
     try {
-      // reuse existing recognition if present
       let recognition = recognitionRef.current;
       if (!recognition) {
         recognition = new SpeechRecognition();
         recognitionRef.current = recognition;
 
         recognition.lang = "ta-IN";
-        recognition.interimResults = true;    // helps debug / get partials
-        recognition.continuous = false;       // keep false but auto-restart manually
+        recognition.interimResults = true;
+        recognition.continuous = false; // manual auto-restart implemented
         recognition.maxAlternatives = 1;
 
         recognition.onstart = () => {
           setMessage("கேட்கப்படுகிறது... பேசவும்.");
-          console.log("recognition.onstart");
         };
 
         recognition.onresult = (event) => {
           const text = Array.from(event.results).map(r => r[0].transcript).join(" ");
-          console.log("recognition.onresult:", event, text);
           setMessage(`நீங்கள் சொன்னது: ${text}`);
 
           const allTriggers = commandMap
@@ -99,9 +91,8 @@ function App() {
           if (found) {
             setCurrent(found.key);
           } else {
-            if (event.resultIndex === event.results.length - 1 && event.results[0].isFinal) {
-              setMessage(`அறிய முடியவில்லை: ${text}`);
-            }
+            const last = event.results[event.results.length - 1];
+            if (last && last.isFinal) setMessage(`அறிய முடியவில்லை: ${text}`);
           }
         };
 
@@ -111,15 +102,10 @@ function App() {
         };
 
         recognition.onend = () => {
-          console.log("recognition.onend");
-          // Automatic restart logic: only restart if _keepListening flag is true
           const r = recognitionRef.current;
           if (r && r._keepListening) {
-            // small delay to avoid tight restart loops on persistent errors
             setTimeout(() => {
-              try {
-                r.start();
-              } catch (e) {
+              try { r.start(); } catch (e) {
                 console.error("Failed to restart recognition:", e);
                 setIsListening(false);
                 setMessage("குரல் அடையாளம் துவங்க முடியவில்லை.");
@@ -132,7 +118,6 @@ function App() {
         };
       }
 
-      // enable auto-restart and start recognition
       recognition._keepListening = true;
       recognition.start();
       setIsListening(true);
@@ -141,3 +126,65 @@ function App() {
       setMessage("குரல் அடையாளத்தை துவங்க முடியவில்லை.");
     }
   };
+
+  const scrollingText = commandMap.map(cmd => cmd.triggers.join(" / ")).join("   |   ");
+
+  return (
+    <div style={{
+      textAlign: "center",
+      marginTop: "50px",
+      fontFamily: "Noto Sans Tamil, sans-serif",
+      boxSizing: "border-box",
+      maxWidth: "100vw",
+      overflowX: "hidden"
+    }}>
+      <div style={{
+        width: "100vw",
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+        background: "#f5f5f5",
+        borderBottom: "2px solid #ffcc00",
+        marginBottom: "20px",
+        height: "40px",
+        display: "flex",
+        alignItems: "center",
+        boxSizing: "border-box",
+        position: "relative"
+      }}>
+        <div style={{
+          display: "inline-block",
+          minWidth: "100vw",
+          animation: "scroll-left 15s linear infinite",
+          fontSize: "22px",
+          color: "#333"
+        }}>
+          {scrollingText}
+        </div>
+        <style>{`@keyframes scroll-left {0% { transform: translateX(100vw);}100% { transform: translateX(-100%);} }`}</style>
+      </div>
+
+      <h1>தமிழ் பொம்மை விளையாட்டு 🎭</h1>
+      <div ref={container} style={{ width: 300, height: 300, margin: "auto" }}></div>
+
+      <button
+        onClick={() => isListening ? stopListening() : startListening()}
+        style={{
+          fontSize: "20px",
+          padding: "10px 20px",
+          background: "#ffcc00",
+          border: "none",
+          borderRadius: "10px",
+          cursor: "pointer",
+        }}
+      >
+        {isListening ? "⏹️ நிறுத்துங்கள்" : "🎤 பேச தொடங்குங்கள்"}
+      </button>
+
+      <p style={{ marginTop: "20px", fontSize: "18px" }}>{message}</p>
+
+      <AudioTest />
+    </div>
+  );
+}
+
+export default App;
