@@ -22,8 +22,12 @@ const commandMap = [
 
 function App() {
   const container = useRef(null);
+  const recognitionRef = useRef(null); // <-- added
   const [message, setMessage] = useState("பேசுங்கள்… (Speak a command)");
   const [current, setCurrent] = useState("sit");
+
+  // NEW state: track whether we are actively listening (for toggle/stop)
+  const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
     const anim = lottie.loadAnimation({
@@ -36,145 +40,104 @@ function App() {
     return () => anim.destroy();
   }, [current]);
 
- const startListening = async () => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    setMessage("உங்கள் உலாவியில் குரல் அடையாளம் (speech recognition) ஆதரவு இல்லை.");
-    return;
-  }
-
-  // Request microphone permission first - some mobile browsers require getUserMedia to prompt permission.
-  try {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+  const stopListening = () => {
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      // prevent auto-restart and stop current recognition
+      recognition._keepListening = false;
+      try { recognition.stop(); } catch(e) { /* ignore */ }
     }
-  } catch (err) {
-    console.error('Microphone permission denied or error:', err);
-    setMessage("மைக்ரோபோன் அனுமதி வழங்கப்படவில்லை. செயலியை பயன்படுத்த மைக்ரோபோன் அனுமதி தேவை.");
-    return;
-  }
+    setIsListening(false);
+    setMessage("நிறுத்தப்பட்டது");
+  };
 
-  try {
-    const recognition = new SpeechRecognition();
-    recognition.lang = "ta-IN";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.continuous = false;
+  const startListening = async () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setMessage("உங்கள் உலாவியில் குரல் அடையாளம் ஆதரவு இல்லை. (Use Chrome on Android)");
+      return;
+    }
 
-    recognition.onstart = () => {
-      setMessage("கேட்கப்படுகிறது... பேசவும்.");
-      console.log('Speech recognition started');
-    };
-
-    recognition.onresult = (event) => {
-      const text = event.results[0][0].transcript.trim();
-      console.log('speech result:', text);
-      setMessage(`நீங்கள் சொன்னது: ${text}`);
-
-      const allTriggers = commandMap
-        .flatMap(cmd => cmd.triggers.map(trigger => ({ key: cmd.key, trigger })))
-        .sort((a, b) => b.trigger.length - a.trigger.length);
-
-      const found = allTriggers.find(item => text.includes(item.trigger));
-      if (found) {
-        setCurrent(found.key);
-      } else {
-        setMessage(`அறிய முடியவில்லை: ${text}`);
+    // prompt mic permission
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
       }
-    };
+    } catch (err) {
+      console.error('Microphone permission error:', err);
+      setMessage("மைக்ரோபோன் அனுமதி வழங்கப்படவில்லை.");
+      return;
+    }
 
-    recognition.onerror = (e) => {
-      console.error('recognition error', e);
-      setMessage("குரல் அடையாளத்தில் பிழை: " + (e.error || 'unknown'));
-    };
+    try {
+      // reuse existing recognition if present
+      let recognition = recognitionRef.current;
+      if (!recognition) {
+        recognition = new SpeechRecognition();
+        recognitionRef.current = recognition;
 
-    recognition.onend = () => {
-      console.log('recognition ended');
-      // Optionally restart automatically for continuous listening:
-      // recognition.start();
-      // Or update UI to allow user to start again
-    };
+        recognition.lang = "ta-IN";
+        recognition.interimResults = true;    // helps debug / get partials
+        recognition.continuous = false;       // keep false but auto-restart manually
+        recognition.maxAlternatives = 1;
 
-    recognition.start();
-  } catch (e) {
-    console.error('Speech recognition init failed', e);
-    setMessage("குரல் அடையாளத்தை துவங்க முடியவில்லை.");
-  }
-};
+        recognition.onstart = () => {
+          setMessage("கேட்கப்படுகிறது... பேசவும்.");
+          console.log("recognition.onstart");
+        };
 
+        recognition.onresult = (event) => {
+          const text = Array.from(event.results).map(r => r[0].transcript).join(" ");
+          console.log("recognition.onresult:", event, text);
+          setMessage(`நீங்கள் சொன்னது: ${text}`);
 
-  // Generate scrolling text from all triggers in commandMap
-  const scrollingText = commandMap
-    .map(cmd => cmd.triggers.join(" / "))
-    .join("   |   ");
-  return (
-    <div
-    style={{
-        textAlign: "center",
-        marginTop: "50px",
-        fontFamily: "Noto Sans Tamil, sans-serif",
-        boxSizing: "border-box",
-        maxWidth: "100vw",
-        overflowX: "hidden"
-      }}
-    >
-        {/* Scrolling commands */}
-      <div style={{
-        width: "100vw",
-        overflow: "hidden",
-        whiteSpace: "nowrap",
-        background: "#f5f5f5",
-        borderBottom: "2px solid #ffcc00",
-        marginBottom: "20px",
-        height: "40px",
-        display: "flex",
-        alignItems: "center",
-        boxSizing: "border-box",
-        position: "relative"
-      }}>
- <div
-          style={{
-            display: "inline-block",
-            minWidth: "100vw",
-            animation: "scroll-left 15s linear infinite",
-            fontSize: "22px",
-            color: "#333"
-          }}
-        >
-          {scrollingText}
-        </div>
-        {/* Keyframes for scrolling */}
-        <style>
-          {`
-            @keyframes scroll-left {
-              0% { transform: translateX(100vw); }
-              100% { transform: translateX(-100%); }
+          const allTriggers = commandMap
+            .flatMap(cmd => cmd.triggers.map(trigger => ({ key: cmd.key, trigger })))
+            .sort((a, b) => b.trigger.length - a.trigger.length);
+
+          const found = allTriggers.find(item => text.includes(item.trigger));
+          if (found) {
+            setCurrent(found.key);
+          } else {
+            if (event.resultIndex === event.results.length - 1 && event.results[0].isFinal) {
+              setMessage(`அறிய முடியவில்லை: ${text}`);
             }
-          `}
-        </style>
-      </div>
-      <h1>தமிழ் பொம்மை விளையாட்டு 🎭</h1>
-      <div
-        ref={container}
-        style={{ width: 300, height: 300, margin: "auto" }}
-      ></div>
-      <button
-        onClick={startListening}
-        style={{
-          fontSize: "20px",
-          padding: "10px 20px",
-          background: "#ffcc00",
-          border: "none",
-          borderRadius: "10px",
-          cursor: "pointer",
-        }}
-      >
-        🎤 பேச தொடங்குங்கள்
-      </button>
-      <p style={{ marginTop: "20px", fontSize: "18px" }}>{message}</p>
-      <AudioTest />
-    </div>
-  );
-}
+          }
+        };
 
-export default App;
+        recognition.onerror = (e) => {
+          console.error("recognition.onerror", e);
+          setMessage("குரல் அடையாள பிழை: " + (e.error || "unknown"));
+        };
+
+        recognition.onend = () => {
+          console.log("recognition.onend");
+          // Automatic restart logic: only restart if _keepListening flag is true
+          const r = recognitionRef.current;
+          if (r && r._keepListening) {
+            // small delay to avoid tight restart loops on persistent errors
+            setTimeout(() => {
+              try {
+                r.start();
+              } catch (e) {
+                console.error("Failed to restart recognition:", e);
+                setIsListening(false);
+                setMessage("குரல் அடையாளம் துவங்க முடியவில்லை.");
+              }
+            }, 300);
+          } else {
+            setIsListening(false);
+            setMessage("நிறுத்தப்பட்டது");
+          }
+        };
+      }
+
+      // enable auto-restart and start recognition
+      recognition._keepListening = true;
+      recognition.start();
+      setIsListening(true);
+    } catch (e) {
+      console.error("Speech init failed", e);
+      setMessage("குரல் அடையாளத்தை துவங்க முடியவில்லை.");
+    }
+  };
