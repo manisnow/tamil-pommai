@@ -80,15 +80,29 @@ function App() {
         if (!res.ok) throw new Error(`Failed to fetch ${jsonPath}: ${res.status}`);
         const data = await res.json();
         if (!mounted) return;
-        // load from animationData (avoid path resolution issues)
-        numbersAnimRef.current = lottie.loadAnimation({
-          container: numbersContainer.current,
-          renderer: "svg",
-          loop: false,
-          autoplay: false,
-          animationData: data
-        });
-        setNumbersLoaded(true);
+
+        // Basic validation to avoid lottie parse errors
+        const isValidLottie = data && Array.isArray(data.layers) && data.layers.length > 0 && typeof data.fr === 'number';
+        if (!isValidLottie) {
+          console.error('Invalid Lottie JSON (missing layers/fr). Skipping load:', data);
+          setNumbersLoaded(false);
+          return;
+        }
+
+        // load from animationData (avoid path resolution issues) and guard errors
+        try {
+          numbersAnimRef.current = lottie.loadAnimation({
+            container: numbersContainer.current,
+            renderer: "svg",
+            loop: false,
+            autoplay: false,
+            animationData: data
+          });
+          setNumbersLoaded(true);
+        } catch (innerErr) {
+          console.error('lottie.loadAnimation threw:', innerErr);
+          setNumbersLoaded(false);
+        }
       } catch (err) {
         console.error('Numbers animation load failed:', err);
         setNumbersLoaded(false);
