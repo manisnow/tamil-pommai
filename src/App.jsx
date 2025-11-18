@@ -60,10 +60,40 @@ const detectDigit = (text) => {
 
 function App() {
   const container = useRef(null);
+  const numbersContainer = useRef(null);
+  const numbersAnimRef = useRef(null);
   const recognitionRef = useRef(null);
   const [message, setMessage] = useState("பேசுங்கள்… (Speak a command)");
   const [current, setCurrent] = useState("sit");
   const [isListening, setIsListening] = useState(false);
+
+  // load numbers lottie (public/numbers-1-to-10.json)
+  useEffect(() => {
+    if (!numbersContainer.current) return;
+    numbersAnimRef.current = lottie.loadAnimation({
+      container: numbersContainer.current,
+      renderer: "svg",
+      loop: false,
+      autoplay: false,
+      path: "/numbers-1-to-10.json",
+    });
+    return () => numbersAnimRef.current && numbersAnimRef.current.destroy();
+  }, []);
+
+  // show number 1..10 (assumes frames at 0,30,60,...)
+  const showNumber = (n) => {
+    const anim = numbersAnimRef.current;
+    if (!anim) return;
+    const idx = Math.max(1, Math.min(10, n)) - 1; // 0..9
+    const frame = idx * 30;
+    try {
+      anim.goToAndStop(frame, true);
+      anim.play();
+      setTimeout(() => { try { anim.pause(); } catch(e){} }, 800);
+    } catch (e) {
+      console.warn("showNumber failed", e);
+    }
+  };
 
   useEffect(() => {
     const anim = lottie.loadAnimation({
@@ -223,6 +253,8 @@ function App() {
         fontFamily: "Noto Sans Tamil, sans-serif",
       }}
     >
+      {/* numbers display area */}
+      <div style={{ width: 120, height: 120, margin: "10px auto" }} ref={numbersContainer}></div>
       {/* Scrolling commands (fixed: inner is absolutely positioned so it won't expand page width) */}
       <div style={{
         width: "100%",
