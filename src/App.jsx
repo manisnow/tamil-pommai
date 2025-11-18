@@ -42,12 +42,15 @@ function App() {
     if (recognition) {
       recognition._keepListening = false;
       try { recognition.stop(); } catch (e) { /* ignore */ }
+      recognitionRef.current = null;
     }
     setIsListening(false);
     setMessage("நிறுத்தப்பட்டது");
   };
 
   const startListening = async () => {
+    if (isListening) return; // prevent double-start
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setMessage("உங்கள் உலாவியில் குரல் அடையாளம் ஆதரவு இல்லை. (Use Chrome on Android)");
@@ -127,19 +130,35 @@ function App() {
     }
   };
 
-  const scrollingText = commandMap.map(cmd => cmd.triggers.join(" / ")).join("   |   ");
+  // cleanup on unmount
+  useEffect(() => {
+    return () => {
+      const r = recognitionRef.current;
+      if (r) {
+        try { r._keepListening = false; r.stop(); } catch(e) {}
+      }
+    };
+  }, []);
+
+  const commands = [
+    "உக்காரு (Sit)",
+    "நட (Walk)",
+    "ஆடு (Dance)",
+    "குதி (Jump)",
+    "ஓடு (Run)"
+  ];
 
   return (
-    <div style={{
-      textAlign: "center",
-      marginTop: "50px",
-      fontFamily: "Noto Sans Tamil, sans-serif",
-      boxSizing: "border-box",
-      maxWidth: "100vw",
-      overflowX: "hidden"
-    }}>
+    <div
+      style={{
+        textAlign: "center",
+        marginTop: "50px",
+        fontFamily: "Noto Sans Tamil, sans-serif",
+      }}
+    >
+      {/* Scrolling commands */}
       <div style={{
-        width: "100vw",
+        width: "100%",
         overflow: "hidden",
         whiteSpace: "nowrap",
         background: "#f5f5f5",
@@ -147,25 +166,35 @@ function App() {
         marginBottom: "20px",
         height: "40px",
         display: "flex",
-        alignItems: "center",
-        boxSizing: "border-box",
-        position: "relative"
+        alignItems: "center"
       }}>
-        <div style={{
-          display: "inline-block",
-          minWidth: "100vw",
-          animation: "scroll-left 15s linear infinite",
-          fontSize: "22px",
-          color: "#333"
-        }}>
-          {scrollingText}
+        <div
+          style={{
+            display: "inline-block",
+            paddingLeft: "100%",
+            animation: "scroll-left 15s linear infinite",
+            fontSize: "22px",
+            color: "#333"
+          }}
+        >
+          {commands.join("   |   ")}
         </div>
-        <style>{`@keyframes scroll-left {0% { transform: translateX(100vw);}100% { transform: translateX(-100%);} }`}</style>
+        {/* Keyframes for scrolling */}
+        <style>
+          {`
+            @keyframes scroll-left {
+              0% { transform: translateX(0); }
+              100% { transform: translateX(-100%); }
+            }
+          `}
+        </style>
       </div>
 
       <h1>தமிழ் பொம்மை விளையாட்டு 🎭</h1>
-      <div ref={container} style={{ width: 300, height: 300, margin: "auto" }}></div>
-
+      <div
+        ref={container}
+        style={{ width: 300, height: 300, margin: "auto" }}
+      ></div>
       <button
         onClick={() => isListening ? stopListening() : startListening()}
         style={{
@@ -179,7 +208,6 @@ function App() {
       >
         {isListening ? "⏹️ நிறுத்துங்கள்" : "🎤 பேச தொடங்குங்கள்"}
       </button>
-
       <p style={{ marginTop: "20px", fontSize: "18px" }}>{message}</p>
 
       <AudioTest />
