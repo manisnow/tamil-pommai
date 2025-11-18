@@ -223,22 +223,24 @@ function App() {
         fontFamily: "Noto Sans Tamil, sans-serif",
       }}
     >
-      {/* Scrolling commands */}
+      {/* Scrolling commands (fixed: inner is absolutely positioned so it won't expand page width) */}
       <div style={{
         width: "100%",
         overflow: "hidden",
-        whiteSpace: "nowrap",
         background: "#f5f5f5",
         borderBottom: "2px solid #ffcc00",
         marginBottom: "20px",
         height: "40px",
         display: "flex",
-        alignItems: "center"
+        alignItems: "center",
+        position: "relative" // <-- required for absolute child
       }}>
         <div
           style={{
-            display: "inline-block",
-            paddingLeft: "100%",
+            position: "absolute",      // prevent affecting layout / page width
+            left: 0,
+            whiteSpace: "nowrap",
+            transform: "translateX(100%)", // start off-screen right
             animation: "scroll-left 18s linear infinite",
             fontSize: "22px",
             color: "#333"
@@ -250,8 +252,8 @@ function App() {
         <style>
           {`
             @keyframes scroll-left {
-              0% { transform: translateX(100%); }
-              100% { transform: translateX(-100%); }
+              0%   { transform: translateX(100%); }  /* start off-screen right */
+              100% { transform: translateX(-100%); } /* move fully off-screen left */
             }
           `}
         </style>
