@@ -19,6 +19,45 @@ const commandMap = [
   { key: "run", triggers: ["ஓடு"] }
 ];
 
+// add near top of file inside component (or above)
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const containsWord = (text, token) => {
+  // match token as whole word or as substring fallback
+  try {
+    const rx = new RegExp(`(^|\\s|[^\\p{L}])${escapeRegExp(token)}($|\\s|[^\\p{L}])`, 'u');
+    return rx.test(text) || text.includes(token);
+  } catch {
+    return text.includes(token);
+  }
+};
+
+// extended Tamil number words (add variants)
+const numberWords = {
+  "ஒன்று": 1, "ஒரு": 1, "ஒன்னு": 1,
+  "இரண்டு": 2, "ரண்டு": 2,
+  "மூன்று": 3, "மூன்னு": 3,
+  "நான்கு": 4, "நாலு": 4,
+  "ஐந்து": 5, "ஐந்த": 5,
+  "ஆறு": 6,
+  "ஏழு": 7, "எழு": 7,
+  "எட்ட": 8, "எட்டு": 8,
+  "ஒன்பது": 9, "ஒன்பத": 9,
+  "பத்து": 10, "பத்த": 10
+};
+
+// detect latin digits or tamil digits
+const detectDigit = (text) => {
+  const m = text.match(/\b([1-9]|10)\b/);
+  if (m) return Number(m[1]);
+  const m2 = text.match(/[\u0BE6-\u0BEF]/u); // Tamil digits
+  if (m2) {
+    const digit = m2[0].codePointAt(0) - 0x0BE6; // convert to 0..9
+    return digit;
+  }
+  return null;
+};
+
 function App() {
   const container = useRef(null);
   const recognitionRef = useRef(null);
@@ -83,20 +122,37 @@ function App() {
         };
 
         recognition.onresult = (event) => {
-          const text = Array.from(event.results).map(r => r[0].transcript).join(" ");
+          let text = Array.from(event.results).map(r => r[0].transcript).join(" ").trim();
+          text = text.replace(/\s+/g, " ").toLowerCase();
           setMessage(`நீங்கள் சொன்னது: ${text}`);
 
+          // 1) check numeric digits first (easy)
+          const d = detectDigit(text);
+          if (d && d >= 1 && d <= 10) {
+            showNumber(d);
+            return;
+          }
+
+          // 2) check tamil number words
+          for (const [w, n] of Object.entries(numberWords)) {
+            if (containsWord(text, w)) { showNumber(n); return; }
+          }
+
+          // 3) command triggers (prefer longer triggers)
           const allTriggers = commandMap
             .flatMap(cmd => cmd.triggers.map(trigger => ({ key: cmd.key, trigger })))
             .sort((a, b) => b.trigger.length - a.trigger.length);
 
-          const found = allTriggers.find(item => text.includes(item.trigger));
-          if (found) {
-            setCurrent(found.key);
-          } else {
-            const last = event.results[event.results.length - 1];
-            if (last && last.isFinal) setMessage(`அறிய முடியவில்லை: ${text}`);
+          for (const item of allTriggers) {
+            if (containsWord(text, item.trigger)) {
+              setCurrent(item.key);
+              return;
+            }
           }
+
+          // fallback: final result not recognized
+          const last = event.results[event.results.length - 1];
+          if (last && last.isFinal) setMessage(`அறிய முடியவில்லை: ${text}`);
         };
 
         recognition.onerror = (e) => {
