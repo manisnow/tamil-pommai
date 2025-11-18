@@ -66,35 +66,97 @@ function App() {
   const [message, setMessage] = useState("பேசுங்கள்… (Speak a command)");
   const [current, setCurrent] = useState("sit");
   const [isListening, setIsListening] = useState(false);
+  const [numbersLoaded, setNumbersLoaded] = useState(false);
 
-  // load numbers lottie (public/numbers-1-to-10.json)
+  // load numbers lottie (public/numbers-1-to-10.json) with robust error handling
   useEffect(() => {
     if (!numbersContainer.current) return;
-    // ensure correct base (dev vs production with base '/tamil-pommai/')
     const baseUrl = import.meta.env.BASE_URL || '/tamil-pommai/';
     const jsonPath = `${baseUrl}numbers-1-to-10.json`;
-    numbersAnimRef.current = lottie.loadAnimation({
-      container: numbersContainer.current,
-      renderer: "svg",
-      loop: false,
-      autoplay: false,
-      path: jsonPath,
-    });
-    return () => numbersAnimRef.current && numbersAnimRef.current.destroy();
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(jsonPath);
+        if (!res.ok) throw new Error(`Failed to fetch ${jsonPath}: ${res.status}`);
+        const data = await res.json();
+        if (!mounted) return;
+        // load from animationData (avoid path resolution issues)
+        numbersAnimRef.current = lottie.loadAnimation({
+          container: numbersContainer.current,
+          renderer: "svg",
+          loop: false,
+          autoplay: false,
+          animationData: data
+        });
+        setNumbersLoaded(true);
+      } catch (err) {
+        console.error('Numbers animation load failed:', err);
+        setNumbersLoaded(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+      if (numbersAnimRef.current) {
+        try { numbersAnimRef.current.destroy(); } catch(e) {}
+      }
+    };
   }, []);
 
-  // show number 1..10 (assumes frames at 0,30,60,...)
+  // show number 1..10 (lottie if available, else DOM fallback)
   const showNumber = (n) => {
     const anim = numbersAnimRef.current;
-    if (!anim) return;
-    const idx = Math.max(1, Math.min(10, n)) - 1; // 0..9
-    const frame = idx * 30;
+    if (anim && typeof anim.goToAndStop === 'function') {
+      const idx = Math.max(1, Math.min(10, n)) - 1; // 0..9
+      const frame = idx * 30;
+      try {
+        anim.goToAndStop(frame, true);
+        anim.play();
+        setTimeout(() => { try { anim.pause(); } catch(e){} }, 800);
+        return;
+      } catch (e) {
+        console.warn("showNumber lottie failed", e);
+        // fall through to DOM fallback
+      }
+    }
+
+    // DOM fallback: create big number, animate via CSS, auto-remove
     try {
-      anim.goToAndStop(frame, true);
-      anim.play();
-      setTimeout(() => { try { anim.pause(); } catch(e){} }, 800);
+      const containerEl = numbersContainer.current;
+      if (!containerEl) return;
+      // remove existing fallback if any
+      const prev = containerEl.querySelector('.num-fallback');
+      if (prev) prev.remove();
+
+      const el = document.createElement('div');
+      el.className = 'num-fallback';
+      el.textContent = String(n);
+      Object.assign(el.style, {
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '80px',
+        fontWeight: '700',
+        color: '#222',
+        background: 'transparent',
+        transform: 'scale(0.6)',
+        opacity: '0',
+        transition: 'transform 220ms ease, opacity 220ms ease'
+      });
+      containerEl.appendChild(el);
+      // trigger animation
+      requestAnimationFrame(() => {
+        el.style.transform = 'scale(1)';
+        el.style.opacity = '1';
+      });
+      setTimeout(() => {
+        el.style.transform = 'scale(0.6)';
+        el.style.opacity = '0';
+        setTimeout(() => { try { el.remove(); } catch(e){} }, 300);
+      }, 900);
     } catch (e) {
-      console.warn("showNumber failed", e);
+      console.error('number fallback failed', e);
     }
   };
 
@@ -235,17 +297,16 @@ function App() {
     "நடனமாடு (Dance)",
     "குதி (Jump)",
     "ஓடு (Run)",
-    // Tamil numbers (will scroll with other commands)
-    "ஒன்று (1)",
-    "இரண்டு (2)",
-    "மூன்று (3)",
-    "நான்கு (4)",
-    "ஐந்து (5)",
-    "ஆறு (6)",
-    "ஏழு (7)",
-    "எட்டு (8)",
-    "ஒன்பது (9)",
-    "பத்து (10)"
+    "1 (One)",
+    "2 (Two)",
+    "3 (Three)",
+    "4 (Four)",
+    "5 (Five)",
+    "6 (Six)",
+    "7 (Seven)",
+    "8 (Eight)",
+    "9 (Nine)",
+    "10 (Ten)"
   ];
 
   return (
