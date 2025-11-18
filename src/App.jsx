@@ -143,9 +143,20 @@ function App() {
   const commands = [
     "உக்காரு (Sit)",
     "நட (Walk)",
-    "ஆடு (Dance)",
+    "நடனமாடு (Dance)",
     "குதி (Jump)",
-    "ஓடு (Run)"
+    "ஓடு (Run)",
+    // Tamil numbers (will scroll with other commands)
+    "ஒன்று (1)",
+    "இரண்டு (2)",
+    "மூன்று (3)",
+    "நான்கு (4)",
+    "ஐந்து (5)",
+    "ஆறு (6)",
+    "ஏழு (7)",
+    "எட்டு (8)",
+    "ஒன்பது (9)",
+    "பத்து (10)"
   ];
 
   return (
@@ -172,7 +183,7 @@ function App() {
           style={{
             display: "inline-block",
             paddingLeft: "100%",
-            animation: "scroll-left 15s linear infinite",
+            animation: "scroll-left 18s linear infinite",
             fontSize: "22px",
             color: "#333"
           }}
@@ -183,7 +194,7 @@ function App() {
         <style>
           {`
             @keyframes scroll-left {
-              0% { transform: translateX(0); }
+              0% { transform: translateX(100%); }
               100% { transform: translateX(-100%); }
             }
           `}
