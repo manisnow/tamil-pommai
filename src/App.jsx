@@ -70,12 +70,13 @@ function App() {
   // load numbers lottie (public/numbers-1-to-10.json)
   useEffect(() => {
     if (!numbersContainer.current) return;
+    const jsonPath = `${import.meta.env.BASE_URL || '/'}numbers-1-to-10.json`;
     numbersAnimRef.current = lottie.loadAnimation({
       container: numbersContainer.current,
       renderer: "svg",
       loop: false,
       autoplay: false,
-      path: "/numbers-1-to-10.json",
+      path: jsonPath,
     });
     return () => numbersAnimRef.current && numbersAnimRef.current.destroy();
   }, []);
